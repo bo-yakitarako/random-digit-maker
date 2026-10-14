@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Digit Maker</title>
+  <style>
+    :root {
+      --card-size: 64px;
+      --accent: #6c5ce7;
+      --accent-soft: #a29bfe;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100svh;
+      display: flex;
+      justify-content: center;
+      background: linear-gradient(160deg, #f6f5ff 0%, #eef1ff 100%);
+      font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+      color: #2d3436;
+    }
+    main {
+      width: min(840px, 100%);
+      padding: 32px 20px 48px;
+    }
+    section {
+      margin-bottom: 28px;
+    }
+    .random-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .range {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .range input {
+      font: inherit;
+      font-weight: 600;
+      width: 68px;
+      padding: 10px 8px;
+      text-align: center;
+      border: 1.5px solid var(--accent-soft);
+      border-radius: 12px;
+      background: #fff;
+      color: #2d3436;
+    }
+    .range input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(162, 155, 254, 0.3);
+    }
+    .tilde { color: #999; font-weight: 600; }
+    button {
+      font: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 28px;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    button:hover { transform: translateY(-2px); }
+    button:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3); }
+    button.ghost {
+      background: #fff;
+      color: var(--accent);
+      border: 1.5px solid var(--accent-soft);
+      box-shadow: none;
+      padding: 8px 20px;
+      font-size: 0.85rem;
+    }
+    button[hidden] { display: none; }
+    .random-result {
+      min-width: 64px;
+      height: 64px;
+      padding: 0 14px;
+      display: grid;
+      place-items: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: inset 0 0 0 2px var(--accent-soft);
+    }
+    .hint {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin: 0 0 14px;
+    }
+    .source {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.6);
+      box-shadow: inset 0 0 0 1px rgba(108, 92, 231, 0.12);
+      min-height: calc(var(--card-size) + 32px);
+    }
+    .slots {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+    }
+    .slot {
+      width: var(--card-size);
+      height: var(--card-size);
+      border: 2px dashed var(--accent-soft);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.5);
+      display: grid;
+      place-items: center;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .slot.over {
+      background: rgba(162, 155, 254, 0.25);
+      border-color: var(--accent);
+    }
+    .slot.filled {
+      border-style: solid;
+      border-color: transparent;
+    }
+    .card {
+      width: var(--card-size);
+      height: var(--card-size);
+      display: grid;
+      place-items: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #2d3436;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 4px 10px rgba(45, 52, 54, 0.12);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(45, 52, 54, 0.18); }
+    .card:active { cursor: grabbing; }
+    .card.dragging { opacity: 0.35; }
+    .drag-ghost {
+      position: fixed;
+      margin: 0;
+      pointer-events: none;
+      z-index: 1000;
+      transform: scale(1.06);
+      box-shadow: 0 12px 26px rgba(45, 52, 54, 0.3);
+      opacity: 0.95;
+    }
+    body.dragging { cursor: grabbing; user-select: none; }
+    .card.over {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+      transform: translateY(-3px);
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="hint">
+      カードをつかんで下のとこに持っていこう。並び替えることもできるよ。ただし乱数で出てきた数は使わないとダメだよ<br>
+      そのままの数字を持っていってもいいし、2が出たから2番目の1を持っていくでもいい
+    </p>
+
+    <section>
+      <div class="random-panel">
+        <div class="range">
+          <input type="number" id="minInput" value="0" step="1" aria-label="最小値">
+          <span class="tilde">〜</span>
+          <input type="number" id="maxInput" value="9" step="1" aria-label="最大値">
+        </div>
+        <button id="randomBtn" type="button">乱数を出す</button>
+        <div class="random-result" id="randomResult">?</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="source" id="source"></div>
+    </section>
+
+    <section>
+      <div class="slots" id="slots"></div>
+      <div class="actions">
+        <button id="minusBtn" class="ghost" type="button">桁-</button>
+        <button id="resetBtn" class="ghost" type="button">リセット</button>
+        <button id="plusBtn" class="ghost" type="button">桁+</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const MIN_SLOTS = 3;
+    const MAX_SLOTS = 10;
+
+    const sourceEl = document.getElementById("source");
+    const slotsEl = document.getElementById("slots");
+    const randomResult = document.getElementById("randomResult");
+    const randomBtn = document.getElementById("randomBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const plusBtn = document.getElementById("plusBtn");
+    const minusBtn = document.getElementById("minusBtn");
+    const minInput = document.getElementById("minInput");
+    const maxInput = document.getElementById("maxInput");
+
+    const cards = new Map();
+    let source = [];
+    let slots = [];
+    let slotCount = 4;
+    let drag = null;
+    let pending = null;
+    let ghost = null;
+    let ghostOffsetX = 0;
+    let ghostOffsetY = 0;
+
+    function makeSourceCard(id) {
+      const card = cards.get(id);
+      const el = document.createElement("div");
+      el.className = "card";
+      el.textContent = card.digit;
+      el.dataset.id = id;
+      el.addEventListener("pointerdown", (e) => {
+        startPointer(e, el, { from: "source", id, digit: card.digit });
+      });
+      return el;
+    }
+
+    function makeSlotCard(digit, index) {
+      const el = document.createElement("div");
+      el.className = "card";
+      el.textContent = digit;
+      el.addEventListener("pointerdown", (e) => {
+        startPointer(e, el, { from: "slot", index, digit });
+      });
+      return el;
+    }
+
+    function startPointer(e, el, info) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      e.preventDefault();
+      pending = { info, el, startX: e.clientX, startY: e.clientY };
+      document.addEventListener("pointermove", onPointerMove);
+      document.addEventListener("pointerup", onPointerUp);
+      document.addEventListener("pointercancel", onPointerUp);
+    }
+
+    function onPointerMove(e) {
+      if (!pending) return;
+      if (!drag) {
+        const dx = e.clientX - pending.startX;
+        const dy = e.clientY - pending.startY;
+        if (Math.hypot(dx, dy) < 6) return;
+        beginDrag();
+      }
+      moveGhost(e.clientX, e.clientY);
+      highlightAt(e.clientX, e.clientY);
+    }
+
+    function beginDrag() {
+      drag = pending.info;
+      const rect = pending.el.getBoundingClientRect();
+      ghostOffsetX = pending.startX - rect.left;
+      ghostOffsetY = pending.startY - rect.top;
+
+      ghost = pending.el.cloneNode(true);
+      ghost.className = "card drag-ghost";
+      ghost.style.width = rect.width + "px";
+      ghost.style.height = rect.height + "px";
+      ghost.style.left = rect.left + "px";
+      ghost.style.top = rect.top + "px";
+      document.body.appendChild(ghost);
+
+      pending.el.classList.add("dragging");
+      document.body.classList.add("dragging");
+    }
+
+    function moveGhost(x, y) {
+      if (!ghost) return;
+      ghost.style.left = (x - ghostOffsetX) + "px";
+      ghost.style.top = (y - ghostOffsetY) + "px";
+    }
+
+    function highlightAt(x, y) {
+      clearOver();
+      const target = document.elementFromPoint(x, y);
+      if (!target) return;
+      const slot = target.closest(".slot");
+      if (slot) {
+        slot.classList.add("over");
+        return;
+      }
+      const card = target.closest(".source .card");
+      if (card) card.classList.add("over");
+    }
+
+    function onPointerUp(e) {
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
+
+      if (!drag) {
+        pending = null;
+        return;
+      }
+
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      const slot = target && target.closest(".slot");
+      const card = target && target.closest(".source .card");
+      const inSource = target && target.closest("#source");
+
+      if (slot) {
+        dropInSlot(Number(slot.dataset.index));
+      } else if (card) {
+        dropOnCard(card.dataset.id);
+      } else if (inSource) {
+        dropOnSource();
+      } else {
+        finishDrag();
+      }
+    }
+
+    function render() {
+      sourceEl.textContent = "";
+      source.forEach((id) => sourceEl.appendChild(makeSourceCard(id)));
+
+      slotsEl.textContent = "";
+      slots.forEach((digit, i) => {
+        const slot = document.createElement("div");
+        slot.className = "slot" + (digit !== null ? " filled" : "");
+        slot.dataset.index = i;
+        if (digit !== null) slot.appendChild(makeSlotCard(digit, i));
+        slotsEl.appendChild(slot);
+      });
+
+      updateResetVisibility();
+    }
+
+    function isDirty() {
+      if (slots.some((digit) => digit !== null)) return true;
+      if (randomResult.textContent !== "?") return true;
+      if (minInput.value !== "0" || maxInput.value !== "9") return true;
+      return source.some((id, i) => cards.get(id).digit !== i);
+    }
+
+    function updateResetVisibility() {
+      const dirty = isDirty();
+      resetBtn.hidden = !dirty;
+      plusBtn.hidden = dirty;
+      minusBtn.hidden = dirty;
+    }
+
+    function clearOver() {
+      sourceEl.querySelectorAll(".over").forEach((el) => el.classList.remove("over"));
+      slotsEl.querySelectorAll(".over").forEach((el) => el.classList.remove("over"));
+    }
+
+    function dropOnCard(targetId) {
+      if (!drag) return;
+      if (drag.from === "slot") {
+        slots[drag.index] = null;
+      } else if (drag.id !== targetId) {
+        const a = source.indexOf(drag.id);
+        const b = source.indexOf(targetId);
+        if (a !== -1 && b !== -1) {
+          source[a] = targetId;
+          source[b] = drag.id;
+        }
+      }
+      finishDrag();
+    }
+
+    function dropInSlot(index) {
+      if (!drag) return;
+      if (drag.from === "source") {
+        if (slots.includes(drag.digit)) {
+          alert("被ってるから置けないよ");
+          finishDrag();
+          return;
+        }
+        slots[index] = drag.digit;
+      } else {
+        if (drag.index === index) return finishDrag();
+        const occupant = slots[index];
+        slots[index] = drag.digit;
+        slots[drag.index] = occupant;
+      }
+      finishDrag();
+    }
+
+    function dropOnSource() {
+      if (!drag) return;
+      if (drag.from === "slot") slots[drag.index] = null;
+      finishDrag();
+    }
+
+    function finishDrag() {
+      drag = null;
+      pending = null;
+      if (ghost) {
+        ghost.remove();
+        ghost = null;
+      }
+      document.body.classList.remove("dragging");
+      clearOver();
+      render();
+    }
+
+    function init() {
+      cards.clear();
+      for (let d = 0; d <= 9; d++) cards.set("c" + d, { id: "c" + d, digit: d });
+
+      source = [];
+      for (let d = 0; d <= 9; d++) source.push("c" + d);
+      slots = new Array(slotCount).fill(null);
+
+      minInput.value = "0";
+      maxInput.value = "9";
+      randomResult.textContent = "?";
+      finishDrag();
+    }
+
+    randomBtn.addEventListener("click", () => {
+      const a = parseInt(minInput.value, 10);
+      const b = parseInt(maxInput.value, 10);
+      if (Number.isNaN(a) || Number.isNaN(b)) {
+        randomResult.textContent = "?";
+        return;
+      }
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      randomResult.textContent = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+      updateResetVisibility();
+    });
+
+    minInput.addEventListener("input", updateResetVisibility);
+    maxInput.addEventListener("input", updateResetVisibility);
+
+    plusBtn.addEventListener("click", () => {
+      if (slotCount >= MAX_SLOTS) return;
+      slotCount += 1;
+      slots.push(null);
+      render();
+    });
+
+    minusBtn.addEventListener("click", () => {
+      if (slotCount <= MIN_SLOTS) return;
+      slotCount -= 1;
+      slots.pop();
+      render();
+    });
+
+    resetBtn.addEventListener("click", init);
+
+    init();
+  </script>
+</body>
+</html>
