@@ -190,9 +190,9 @@
     <section>
       <div class="random-panel">
         <div class="range">
-          <input type="number" id="minInput" value="0" step="1" aria-label="最小値">
+          <input type="number" id="minInput" value="0" min="0" max="8" step="1" aria-label="最小値">
           <span class="tilde">〜</span>
-          <input type="number" id="maxInput" value="9" step="1" aria-label="最大値">
+          <input type="number" id="maxInput" value="9" min="1" max="9" step="1" aria-label="最大値">
         </div>
         <button id="randomBtn" type="button">乱数を出す</button>
         <div class="random-result" id="randomResult">?</div>
@@ -373,6 +373,33 @@
       minusBtn.hidden = dirty;
     }
 
+    function normalizeRange(changed) {
+      let lo = parseInt(minInput.value, 10);
+      let hi = parseInt(maxInput.value, 10);
+      if (Number.isNaN(lo)) lo = 0;
+      if (Number.isNaN(hi)) hi = 9;
+      lo = Math.min(9, Math.max(0, lo));
+      hi = Math.min(9, Math.max(0, hi));
+
+      if (lo >= hi) {
+        if (changed === "min") {
+          if (hi - 1 >= 0) lo = hi - 1;
+          else { lo = 0; hi = 1; }
+        } else if (lo + 1 <= 9) {
+          hi = lo + 1;
+        } else {
+          hi = 9;
+          lo = 8;
+        }
+      }
+
+      minInput.value = lo;
+      maxInput.value = hi;
+      minInput.max = hi - 1;
+      maxInput.min = lo + 1;
+      updateResetVisibility();
+    }
+
     function clearOver() {
       sourceEl.querySelectorAll(".over").forEach((el) => el.classList.remove("over"));
       slotsEl.querySelectorAll(".over").forEach((el) => el.classList.remove("over"));
@@ -440,6 +467,7 @@
       minInput.value = "0";
       maxInput.value = "9";
       randomResult.textContent = "?";
+      normalizeRange("min");
       finishDrag();
     }
 
@@ -456,8 +484,8 @@
       updateResetVisibility();
     });
 
-    minInput.addEventListener("input", updateResetVisibility);
-    maxInput.addEventListener("input", updateResetVisibility);
+    minInput.addEventListener("input", () => normalizeRange("min"));
+    maxInput.addEventListener("input", () => normalizeRange("max"));
 
     plusBtn.addEventListener("click", () => {
       if (slotCount >= MAX_SLOTS) return;
