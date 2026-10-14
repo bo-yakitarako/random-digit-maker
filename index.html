@@ -21,6 +21,9 @@
       font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
       color: #2d3436;
     }
+    html.embedded body {
+      min-height: auto;
+    }
     main {
       width: min(840px, 100%);
       padding: 32px 20px 48px;
@@ -473,6 +476,38 @@
     resetBtn.addEventListener("click", init);
 
     init();
+  </script>
+
+  <script>
+    (function () {
+      if (window.self === window.top) return;
+      document.documentElement.classList.add("embedded");
+
+      function measure() {
+        return Math.max(
+          document.body.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight
+        );
+      }
+
+      function report() {
+        window.parent.postMessage(
+          { type: "random-digit-maker:resize", height: Math.ceil(measure()) },
+          "*"
+        );
+      }
+
+      window.addEventListener("load", report);
+      window.addEventListener("resize", report);
+      if ("ResizeObserver" in window) {
+        new ResizeObserver(report).observe(document.body);
+      } else {
+        setInterval(report, 500);
+      }
+      report();
+    })();
   </script>
 </body>
 </html>
