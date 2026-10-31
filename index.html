@@ -190,9 +190,9 @@
     <section>
       <div class="random-panel">
         <div class="range">
-          <input type="number" id="minInput" value="0" min="0" max="8" step="1" aria-label="最小値">
+          <input type="text" id="minInput" value="0" aria-label="最小値">
           <span class="tilde">〜</span>
-          <input type="number" id="maxInput" value="9" min="1" max="9" step="1" aria-label="最大値">
+          <input type="text" id="maxInput" value="9" aria-label="最大値">
         </div>
         <button id="randomBtn" type="button">乱数を出す</button>
         <div class="random-result" id="randomResult">?</div>
@@ -373,13 +373,23 @@
       minusBtn.hidden = dirty;
     }
 
+    function parseRangeValue(value) {
+      const text = value.trim();
+      if (!/^[+-]?\d+$/.test(text)) return null;
+      return parseInt(text, 10);
+    }
+
     function normalizeRange(changed) {
-      let lo = parseInt(minInput.value, 10);
-      let hi = parseInt(maxInput.value, 10);
-      if (Number.isNaN(lo)) lo = 0;
-      if (Number.isNaN(hi)) hi = 9;
-      lo = Math.min(9, Math.max(0, lo));
-      hi = Math.min(9, Math.max(0, hi));
+      const parsedLo = parseRangeValue(minInput.value);
+      const parsedHi = parseRangeValue(maxInput.value);
+      // 数字以外が入力されている間は、そのまま入力できるようにする
+      if (parsedLo === null || parsedHi === null) {
+        updateResetVisibility();
+        return;
+      }
+
+      let lo = Math.min(9, Math.max(0, parsedLo));
+      let hi = Math.min(9, Math.max(0, parsedHi));
 
       if (lo >= hi) {
         if (changed === "min") {
@@ -395,8 +405,6 @@
 
       minInput.value = lo;
       maxInput.value = hi;
-      minInput.max = hi - 1;
-      maxInput.min = lo + 1;
       updateResetVisibility();
     }
 
@@ -472,9 +480,9 @@
     }
 
     randomBtn.addEventListener("click", () => {
-      const a = parseInt(minInput.value, 10);
-      const b = parseInt(maxInput.value, 10);
-      if (Number.isNaN(a) || Number.isNaN(b)) {
+      const a = parseRangeValue(minInput.value);
+      const b = parseRangeValue(maxInput.value);
+      if (a === null || b === null) {
         randomResult.textContent = "?";
         return;
       }
